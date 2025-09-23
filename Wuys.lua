@@ -1,9 +1,10 @@
--- Auto Movement Script for Roblox
+-- Wuys Auto Movement Script for Roblox
 -- Created by Wuysnee
--- Features: Auto Movement & Auto Dodge
+-- Features: Auto Movement & Auto Dodge + Draggable GUI
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -22,9 +23,13 @@ local autoDodgeEnabled = false
 local isDodging = false
 local currentMovement = nil
 
+-- GUI Dragging Variables
+local dragging = false
+local dragInput, dragStart, startPos
+
 -- Create GUI
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "MovementScriptGUI"
+screenGui.Name = "WuysAutoMoveGUI"
 screenGui.Parent = player.PlayerGui
 
 local mainFrame = Instance.new("Frame")
@@ -32,32 +37,69 @@ mainFrame.Size = UDim2.new(0, 200, 0, 120)
 mainFrame.Position = UDim2.new(0, 10, 0, 10)
 mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = false  -- We'll handle dragging manually
 mainFrame.Parent = screenGui
 
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 8)
 corner.Parent = mainFrame
 
+-- Title Bar for Dragging
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 25)
+titleBar.Position = UDim2.new(0, 0, 0, 0)
+titleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 8)
+titleCorner.Parent = titleBar
+
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 30)
-title.Position = UDim2.new(0, 0, 0, 0)
-title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+title.Size = UDim2.new(1, -30, 1, 0)
+title.Position = UDim2.new(0, 5, 0, 0)
+title.BackgroundTransparency = 1
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Text = "Auto Movement Script"
+title.Text = "Wuys Auto Move"
 title.Font = Enum.Font.GothamBold
-title.TextSize = 14
-title.Parent = mainFrame
+title.TextSize = 12
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = titleBar
+
+-- Close Button
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 20, 0, 20)
+closeButton.Position = UDim2.new(1, -25, 0, 2)
+closeButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.Text = "X"
+closeButton.Font = Enum.Font.GothamBold
+closeButton.TextSize = 12
+closeButton.Parent = titleBar
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 4)
+closeCorner.Parent = closeButton
+
+-- Content Area
+local contentFrame = Instance.new("Frame")
+contentFrame.Size = UDim2.new(1, 0, 1, -25)
+contentFrame.Position = UDim2.new(0, 0, 0, 25)
+contentFrame.BackgroundTransparency = 1
+contentFrame.Parent = mainFrame
 
 -- Auto Movement Toggle
 local autoMoveButton = Instance.new("TextButton")
 autoMoveButton.Size = UDim2.new(0.9, 0, 0, 30)
-autoMoveButton.Position = UDim2.new(0.05, 0, 0, 35)
+autoMoveButton.Position = UDim2.new(0.05, 0, 0, 10)
 autoMoveButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 autoMoveButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 autoMoveButton.Text = "Auto Movement: OFF"
 autoMoveButton.Font = Enum.Font.Gotham
 autoMoveButton.TextSize = 12
-autoMoveButton.Parent = mainFrame
+autoMoveButton.Parent = contentFrame
 
 local autoMoveCorner = Instance.new("UICorner")
 autoMoveCorner.CornerRadius = UDim.new(0, 6)
@@ -66,19 +108,63 @@ autoMoveCorner.Parent = autoMoveButton
 -- Auto Dodge Toggle
 local autoDodgeButton = Instance.new("TextButton")
 autoDodgeButton.Size = UDim2.new(0.9, 0, 0, 30)
-autoDodgeButton.Position = UDim2.new(0.05, 0, 0, 75)
+autoDodgeButton.Position = UDim2.new(0.05, 0, 0, 50)
 autoDodgeButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 autoDodgeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 autoDodgeButton.Text = "Auto Dodge: OFF"
 autoDodgeButton.Font = Enum.Font.Gotham
 autoDodgeButton.TextSize = 12
-autoDodgeButton.Parent = mainFrame
+autoDodgeButton.Parent = contentFrame
 
 local autoDodgeCorner = Instance.new("UICorner")
 autoDodgeCorner.CornerRadius = UDim.new(0, 6)
 autoDodgeCorner.Parent = autoDodgeButton
 
--- Functions
+-- GUI Dragging Functions
+local function updateInput(input)
+    local delta = input.Position - dragStart
+    mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+titleBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        updateInput(input)
+    end
+end)
+
+-- Close Button Functionality
+closeButton.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+    if autoMoveConnection then
+        autoMoveConnection:Disconnect()
+    end
+    if dodgeConnection then
+        dodgeConnection:Disconnect()
+    end
+    print("❌ Wuys Auto Move GUI Closed")
+end)
+
+-- Movement Functions (giữ nguyên từ script cũ)
 local function getRandomDirection()
     local directions = {
         Vector3.new(1, 0, 0),   -- Right
@@ -299,6 +385,8 @@ player.CharacterAdded:Connect(function(newCharacter)
     end
 end)
 
-print("✅ Kalitor Script Loaded Successfully!")
+print("✅ Wuys Auto Move Script Loaded Successfully!")
 print("📝 Features: Auto Movement & Auto Dodge")
-print("🎮 GUI is visible on screen")
+print("🎮 Draggable GUI is visible on screen")
+print("💡 Drag the title bar to move the GUI")
+print("❌ Click X to close the GUI")
