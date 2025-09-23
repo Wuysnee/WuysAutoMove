@@ -1,21 +1,23 @@
 -- Wuys Auto Movement Script for Roblox
 -- Created by Wuysnee
--- Features: Auto Movement & Auto Dodge + Draggable GUI
+-- Features: Auto Movement & Auto Dodge + Draggable GUI + Custom Settings
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local TextService = game:GetService("TextService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- Configuration
+-- Default Configuration
 local AUTO_MOVE_DISTANCE = {min = 10, max = 30}
 local DODGE_DISTANCE = 5
 local MOVE_SPEED = 16
 local JUMP_POWER = 50
+local MOVE_DURATION = 3.0  -- Default move duration in seconds
 
 -- Script States
 local autoMovementEnabled = false
@@ -33,12 +35,12 @@ screenGui.Name = "WuysAutoMoveGUI"
 screenGui.Parent = player.PlayerGui
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 200, 0, 120)
+mainFrame.Size = UDim2.new(0, 220, 0, 180)  -- Increased height for new inputs
 mainFrame.Position = UDim2.new(0, 10, 0, 10)
 mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
-mainFrame.Draggable = false  -- We'll handle dragging manually
+mainFrame.Draggable = false
 mainFrame.Parent = screenGui
 
 local corner = Instance.new("UICorner")
@@ -90,10 +92,64 @@ contentFrame.Position = UDim2.new(0, 0, 0, 25)
 contentFrame.BackgroundTransparency = 1
 contentFrame.Parent = mainFrame
 
+-- Move Duration Input
+local durationLabel = Instance.new("TextLabel")
+durationLabel.Size = UDim2.new(0.4, 0, 0, 20)
+durationLabel.Position = UDim2.new(0.05, 0, 0, 10)
+durationLabel.BackgroundTransparency = 1
+durationLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+durationLabel.Text = "Move Time (s):"
+durationLabel.Font = Enum.Font.Gotham
+durationLabel.TextSize = 11
+durationLabel.TextXAlignment = Enum.TextXAlignment.Left
+durationLabel.Parent = contentFrame
+
+local durationTextBox = Instance.new("TextBox")
+durationTextBox.Size = UDim2.new(0.5, 0, 0, 20)
+durationTextBox.Position = UDim2.new(0.5, 0, 0, 10)
+durationTextBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+durationTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+durationTextBox.Text = "3.0"
+durationTextBox.Font = Enum.Font.Gotham
+durationTextBox.TextSize = 11
+durationTextBox.PlaceholderText = "e.g., 3.5"
+durationTextBox.Parent = contentFrame
+
+local durationCorner = Instance.new("UICorner")
+durationCorner.CornerRadius = UDim.new(0, 4)
+durationCorner.Parent = durationTextBox
+
+-- Dodge Distance Input
+local dodgeLabel = Instance.new("TextLabel")
+dodgeLabel.Size = UDim2.new(0.4, 0, 0, 20)
+dodgeLabel.Position = UDim2.new(0.05, 0, 0, 35)
+dodgeLabel.BackgroundTransparency = 1
+dodgeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+dodgeLabel.Text = "Dodge Distance:"
+dodgeLabel.Font = Enum.Font.Gotham
+dodgeLabel.TextSize = 11
+dodgeLabel.TextXAlignment = Enum.TextXAlignment.Left
+dodgeLabel.Parent = contentFrame
+
+local dodgeTextBox = Instance.new("TextBox")
+dodgeTextBox.Size = UDim2.new(0.5, 0, 0, 20)
+dodgeTextBox.Position = UDim2.new(0.5, 0, 0, 35)
+dodgeTextBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+dodgeTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+dodgeTextBox.Text = "5"
+dodgeTextBox.Font = Enum.Font.Gotham
+dodgeTextBox.TextSize = 11
+dodgeTextBox.PlaceholderText = "e.g., 7"
+dodgeTextBox.Parent = contentFrame
+
+local dodgeCorner = Instance.new("UICorner")
+dodgeCorner.CornerRadius = UDim.new(0, 4)
+dodgeCorner.Parent = dodgeTextBox
+
 -- Auto Movement Toggle
 local autoMoveButton = Instance.new("TextButton")
 autoMoveButton.Size = UDim2.new(0.9, 0, 0, 30)
-autoMoveButton.Position = UDim2.new(0.05, 0, 0, 10)
+autoMoveButton.Position = UDim2.new(0.05, 0, 0, 65)
 autoMoveButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 autoMoveButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 autoMoveButton.Text = "Auto Movement: OFF"
@@ -108,7 +164,7 @@ autoMoveCorner.Parent = autoMoveButton
 -- Auto Dodge Toggle
 local autoDodgeButton = Instance.new("TextButton")
 autoDodgeButton.Size = UDim2.new(0.9, 0, 0, 30)
-autoDodgeButton.Position = UDim2.new(0.05, 0, 0, 50)
+autoDodgeButton.Position = UDim2.new(0.05, 0, 0, 105)
 autoDodgeButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 autoDodgeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 autoDodgeButton.Text = "Auto Dodge: OFF"
@@ -164,7 +220,61 @@ closeButton.MouseButton1Click:Connect(function()
     print("❌ Wuys Auto Move GUI Closed")
 end)
 
--- Movement Functions (giữ nguyên từ script cũ)
+-- TextBox Validation Functions
+local function parseNumber(text)
+    -- Replace comma with dot for European format
+    local cleanedText = string.gsub(text, ",", ".")
+    -- Remove any non-numeric characters except dot
+    cleanedText = string.gsub(cleanedText, "[^%d%.]", "")
+    
+    local number = tonumber(cleanedText)
+    return number
+end
+
+local function validateDuration()
+    local duration = parseNumber(durationTextBox.Text)
+    if duration and duration > 0 and duration <= 60 then
+        durationTextBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        MOVE_DURATION = duration
+        return true
+    else
+        durationTextBox.BackgroundColor3 = Color3.fromRGB(100, 60, 60)
+        return false
+    end
+end
+
+local function validateDodgeDistance()
+    local distance = parseNumber(dodgeTextBox.Text)
+    if distance and distance >= 1 and distance <= 20 then
+        dodgeTextBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        DODGE_DISTANCE = distance
+        return true
+    else
+        dodgeTextBox.BackgroundColor3 = Color3.fromRGB(100, 60, 60)
+        return false
+    end
+end
+
+-- TextBox Focus Events
+durationTextBox.FocusLost:Connect(function()
+    if not validateDuration() then
+        durationTextBox.Text = "3.0"
+        MOVE_DURATION = 3.0
+        validateDuration()
+    end
+    print("📊 Move Duration set to: " .. MOVE_DURATION .. " seconds")
+end)
+
+dodgeTextBox.FocusLost:Connect(function()
+    if not validateDodgeDistance() then
+        dodgeTextBox.Text = "5"
+        DODGE_DISTANCE = 5
+        validateDodgeDistance()
+    end
+    print("📊 Dodge Distance set to: " .. DODGE_DISTANCE .. " studs")
+end)
+
+-- Movement Functions
 local function getRandomDirection()
     local directions = {
         Vector3.new(1, 0, 0),   -- Right
@@ -254,7 +364,9 @@ local function performAutoMovement()
     local direction = getRandomDirection()
     local distance = getRandomDistance()
     local targetPosition = rootPart.Position + (direction * distance)
-    local duration = distance / MOVE_SPEED
+    
+    -- Use custom duration instead of calculating from speed
+    local duration = MOVE_DURATION
     
     moveToPosition(targetPosition, duration)
     
@@ -275,6 +387,12 @@ local autoMoveConnection
 local dodgeConnection
 
 local function startAutoMovement()
+    if not validateDuration() then
+        durationTextBox.Text = "3.0"
+        MOVE_DURATION = 3.0
+        validateDuration()
+    end
+    
     autoMovementEnabled = true
     autoMoveButton.Text = "Auto Movement: ON"
     autoMoveButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
@@ -305,6 +423,12 @@ local function stopAutoMovement()
 end
 
 local function startAutoDodge()
+    if not validateDodgeDistance() then
+        dodgeTextBox.Text = "5"
+        DODGE_DISTANCE = 5
+        validateDodgeDistance()
+    end
+    
     autoDodgeEnabled = true
     autoDodgeButton.Text = "Auto Dodge: ON"
     autoDodgeButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
@@ -385,8 +509,15 @@ player.CharacterAdded:Connect(function(newCharacter)
     end
 end)
 
+-- Initialize validation
+validateDuration()
+validateDodgeDistance()
+
 print("✅ Wuys Auto Move Script Loaded Successfully!")
 print("📝 Features: Auto Movement & Auto Dodge")
+print("⚙️ Customizable: Move Time & Dodge Distance")
 print("🎮 Draggable GUI is visible on screen")
 print("💡 Drag the title bar to move the GUI")
 print("❌ Click X to close the GUI")
+print("📊 Default Move Time: " .. MOVE_DURATION .. " seconds")
+print("📊 Default Dodge Distance: " .. DODGE_DISTANCE .. " studs")
