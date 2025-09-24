@@ -48,8 +48,8 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/Wuysnee/WuysAutoMove/
 ---
 
 ## 🖥️ Executor được đề xuất  
-- **PC (Windows):** KRNL, Delta X, Trigon  
-- **Android & iOS:** Codex  
+- **PC (Windows):** : Wave , Krnl PC, JJsploit 
+- **Android & iOS:** Codex , Krnl, Delta X, Trigon
 
 ---
 
