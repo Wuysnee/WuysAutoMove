@@ -1,11 +1,11 @@
 -- Wuys Auto Movement Script for Roblox
 -- Created by Wuysnee
--- Features: Auto Movement & Auto Dodge + Draggable GUI + Custom Settings
+-- Features: Auto Movement & Auto Dodge + Move Continuous + RGB GUI
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local TextService = game:GetService("TextService")
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -17,11 +17,12 @@ local AUTO_MOVE_DISTANCE = {min = 10, max = 30}
 local DODGE_DISTANCE = 5
 local MOVE_SPEED = 16
 local JUMP_POWER = 50
-local MOVE_DURATION = 3.0  -- Default move duration in seconds
+local MOVE_DURATION = 3.0
 
 -- Script States
 local autoMovementEnabled = false
 local autoDodgeEnabled = false
+local continuousMoveEnabled = false
 local isDodging = false
 local currentMovement = nil
 
@@ -29,13 +30,18 @@ local currentMovement = nil
 local dragging = false
 local dragInput, dragStart, startPos
 
+-- RGB Color Variables
+local rgbEnabled = true
+local rgbCycleTime = 7 -- seconds for full cycle
+local rgbHue = 0
+
 -- Create GUI
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "WuysAutoMoveGUI"
 screenGui.Parent = player.PlayerGui
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 220, 0, 180)  -- Increased height for new inputs
+mainFrame.Size = UDim2.new(0, 220, 0, 220)  -- Increased height for new button
 mainFrame.Position = UDim2.new(0, 10, 0, 10)
 mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mainFrame.BorderSizePixel = 0
@@ -60,7 +66,7 @@ titleCorner.CornerRadius = UDim.new(0, 8)
 titleCorner.Parent = titleBar
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -30, 1, 0)
+title.Size = UDim2.new(1, -50, 1, 0)
 title.Position = UDim2.new(0, 5, 0, 0)
 title.BackgroundTransparency = 1
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -69,6 +75,21 @@ title.Font = Enum.Font.GothamBold
 title.TextSize = 12
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.Parent = titleBar
+
+-- RGB Toggle Button
+local rgbButton = Instance.new("TextButton")
+rgbButton.Size = UDim2.new(0, 20, 0, 20)
+rgbButton.Position = UDim2.new(1, -50, 0, 2)
+rgbButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+rgbButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+rgbButton.Text = "RGB"
+rgbButton.Font = Enum.Font.GothamBold
+rgbButton.TextSize = 8
+rgbButton.Parent = titleBar
+
+local rgbCorner = Instance.new("UICorner")
+rgbCorner.CornerRadius = UDim.new(0, 4)
+rgbCorner.Parent = rgbButton
 
 -- Close Button
 local closeButton = Instance.new("TextButton")
@@ -161,10 +182,25 @@ local autoMoveCorner = Instance.new("UICorner")
 autoMoveCorner.CornerRadius = UDim.new(0, 6)
 autoMoveCorner.Parent = autoMoveButton
 
+-- Continuous Movement Toggle
+local continuousMoveButton = Instance.new("TextButton")
+continuousMoveButton.Size = UDim2.new(0.9, 0, 0, 30)
+continuousMoveButton.Position = UDim2.new(0.05, 0, 0, 105)
+continuousMoveButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+continuousMoveButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+continuousMoveButton.Text = "Continuous Move: OFF"
+continuousMoveButton.Font = Enum.Font.Gotham
+continuousMoveButton.TextSize = 12
+continuousMoveButton.Parent = contentFrame
+
+local continuousMoveCorner = Instance.new("UICorner")
+continuousMoveCorner.CornerRadius = UDim.new(0, 6)
+continuousMoveCorner.Parent = continuousMoveButton
+
 -- Auto Dodge Toggle
 local autoDodgeButton = Instance.new("TextButton")
 autoDodgeButton.Size = UDim2.new(0.9, 0, 0, 30)
-autoDodgeButton.Position = UDim2.new(0.05, 0, 0, 105)
+autoDodgeButton.Position = UDim2.new(0.05, 0, 0, 145)
 autoDodgeButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 autoDodgeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 autoDodgeButton.Text = "Auto Dodge: OFF"
@@ -175,6 +211,120 @@ autoDodgeButton.Parent = contentFrame
 local autoDodgeCorner = Instance.new("UICorner")
 autoDodgeCorner.CornerRadius = UDim.new(0, 6)
 autoDodgeCorner.Parent = autoDodgeButton
+
+-- RGB Color Functions
+local function HSVToRGB(h, s, v)
+    h = h % 1
+    local i = math.floor(h * 6)
+    local f = h * 6 - i
+    local p = v * (1 - s)
+    local q = v * (1 - f * s)
+    local t = v * (1 - (1 - f) * s)
+    
+    local r, g, b
+    
+    if i == 0 then
+        r, g, b = v, t, p
+    elseif i == 1 then
+        r, g, b = q, v, p
+    elseif i == 2 then
+        r, g, b = p, v, t
+    elseif i == 3 then
+        r, g, b = p, q, v
+    elseif i == 4 then
+        r, g, b = t, p, v
+    else
+        r, g, b = v, p, q
+    end
+    
+    return Color3.new(r, g, b)
+end
+
+local function updateRGBColors()
+    if not rgbEnabled then return end
+    
+    local currentTime = tick()
+    rgbHue = (currentTime % rgbCycleTime) / rgbCycleTime
+    
+    local rgbColor = HSVToRGB(rgbHue, 0.8, 0.8)
+    local darkerRgb = HSVToRGB(rgbHue, 0.8, 0.6)
+    local darkestRgb = HSVToRGB(rgbHue, 0.8, 0.4)
+    
+    -- Update main frame
+    mainFrame.BackgroundColor3 = darkestRgb
+    titleBar.BackgroundColor3 = darkerRgb
+    
+    -- Update buttons
+    if autoMovementEnabled then
+        autoMoveButton.BackgroundColor3 = rgbColor
+    else
+        autoMoveButton.BackgroundColor3 = darkerRgb
+    end
+    
+    if continuousMoveEnabled then
+        continuousMoveButton.BackgroundColor3 = rgbColor
+    else
+        continuousMoveButton.BackgroundColor3 = darkerRgb
+    end
+    
+    if autoDodgeEnabled then
+        autoDodgeButton.BackgroundColor3 = rgbColor
+    else
+        autoDodgeButton.BackgroundColor3 = darkerRgb
+    end
+    
+    -- Update RGB button
+    rgbButton.BackgroundColor3 = rgbColor
+end
+
+-- Start RGB cycle
+local rgbConnection
+local function startRGB()
+    rgbEnabled = true
+    rgbButton.Text = "RGB"
+    rgbConnection = RunService.Heartbeat:Connect(updateRGBColors)
+end
+
+local function stopRGB()
+    rgbEnabled = false
+    rgbButton.Text = "OFF"
+    if rgbConnection then
+        rgbConnection:Disconnect()
+        rgbConnection = nil
+    end
+    
+    -- Reset to default colors
+    mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    titleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    rgbButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+    
+    if autoMovementEnabled then
+        autoMoveButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+    else
+        autoMoveButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    end
+    
+    if continuousMoveEnabled then
+        continuousMoveButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+    else
+        continuousMoveButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    end
+    
+    if autoDodgeEnabled then
+        autoDodgeButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+    else
+        autoDodgeButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    end
+end
+
+-- RGB Button Click
+rgbButton.MouseButton1Click:Connect(function()
+    if rgbEnabled then
+        stopRGB()
+    else
+        startRGB()
+    end
+end)
 
 -- GUI Dragging Functions
 local function updateInput(input)
@@ -214,19 +364,22 @@ closeButton.MouseButton1Click:Connect(function()
     if autoMoveConnection then
         autoMoveConnection:Disconnect()
     end
+    if continuousMoveConnection then
+        continuousMoveConnection:Disconnect()
+    end
     if dodgeConnection then
         dodgeConnection:Disconnect()
+    end
+    if rgbConnection then
+        rgbConnection:Disconnect()
     end
     print("❌ Wuys Auto Move GUI Closed")
 end)
 
 -- TextBox Validation Functions
 local function parseNumber(text)
-    -- Replace comma with dot for European format
     local cleanedText = string.gsub(text, ",", ".")
-    -- Remove any non-numeric characters except dot
     cleanedText = string.gsub(cleanedText, "[^%d%.]", "")
-    
     local number = tonumber(cleanedText)
     return number
 end
@@ -364,8 +517,6 @@ local function performAutoMovement()
     local direction = getRandomDirection()
     local distance = getRandomDistance()
     local targetPosition = rootPart.Position + (direction * distance)
-    
-    -- Use custom duration instead of calculating from speed
     local duration = MOVE_DURATION
     
     moveToPosition(targetPosition, duration)
@@ -382,8 +533,29 @@ local function performAutoMovement()
     end
 end
 
+-- Continuous Movement Function
+local function performContinuousMovement()
+    if isDodging or not continuousMoveEnabled then return end
+    
+    local direction = getRandomDirection()
+    local distance = getRandomDistance()
+    local targetPosition = rootPart.Position + (direction * distance)
+    
+    -- Continuous movement uses very short duration for smooth movement
+    moveToPosition(targetPosition, 0.1)
+    
+    if shouldJump() and math.random(1, 10) == 1 then  -- Lower jump chance for continuous
+        wait(0.1)
+        if humanoid.FloorMaterial ~= Enum.Material.Air then
+            humanoid.JumpPower = JUMP_POWER
+            humanoid.Jump = true
+        end
+    end
+end
+
 -- Main loops
 local autoMoveConnection
+local continuousMoveConnection
 local dodgeConnection
 
 local function startAutoMovement()
@@ -395,7 +567,11 @@ local function startAutoMovement()
     
     autoMovementEnabled = true
     autoMoveButton.Text = "Auto Movement: ON"
-    autoMoveButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+    if rgbEnabled then
+        autoMoveButton.BackgroundColor3 = HSVToRGB(rgbHue, 0.8, 0.8)
+    else
+        autoMoveButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+    end
     
     autoMoveConnection = RunService.Heartbeat:Connect(function()
         if not autoMovementEnabled then return end
@@ -409,11 +585,50 @@ end
 local function stopAutoMovement()
     autoMovementEnabled = false
     autoMoveButton.Text = "Auto Movement: OFF"
-    autoMoveButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    if rgbEnabled then
+        autoMoveButton.BackgroundColor3 = HSVToRGB(rgbHue, 0.8, 0.6)
+    else
+        autoMoveButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    end
     
     if autoMoveConnection then
         autoMoveConnection:Disconnect()
         autoMoveConnection = nil
+    end
+    
+    if currentMovement then
+        currentMovement:Cancel()
+        currentMovement = nil
+    end
+end
+
+local function startContinuousMovement()
+    continuousMoveEnabled = true
+    continuousMoveButton.Text = "Continuous Move: ON"
+    if rgbEnabled then
+        continuousMoveButton.BackgroundColor3 = HSVToRGB(rgbHue, 0.8, 0.8)
+    else
+        continuousMoveButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+    end
+    
+    continuousMoveConnection = RunService.Heartbeat:Connect(function()
+        if not continuousMoveEnabled then return end
+        performContinuousMovement()
+    end)
+end
+
+local function stopContinuousMovement()
+    continuousMoveEnabled = false
+    continuousMoveButton.Text = "Continuous Move: OFF"
+    if rgbEnabled then
+        continuousMoveButton.BackgroundColor3 = HSVToRGB(rgbHue, 0.8, 0.6)
+    else
+        continuousMoveButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    end
+    
+    if continuousMoveConnection then
+        continuousMoveConnection:Disconnect()
+        continuousMoveConnection = nil
     end
     
     if currentMovement then
@@ -431,14 +646,18 @@ local function startAutoDodge()
     
     autoDodgeEnabled = true
     autoDodgeButton.Text = "Auto Dodge: ON"
-    autoDodgeButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+    if rgbEnabled then
+        autoDodgeButton.BackgroundColor3 = HSVToRGB(rgbHue, 0.8, 0.8)
+    else
+        autoDodgeButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+    end
     
     dodgeConnection = RunService.Heartbeat:Connect(function()
         if not autoDodgeEnabled then return end
         
         local nearbyPlayers = getNearbyPlayers()
         
-        if #nearbyPlayers > 0 and autoMovementEnabled then
+        if #nearbyPlayers > 0 and (autoMovementEnabled or continuousMoveEnabled) then
             isDodging = true
             
             if currentMovement then
@@ -465,7 +684,11 @@ end
 local function stopAutoDodge()
     autoDodgeEnabled = false
     autoDodgeButton.Text = "Auto Dodge: OFF"
-    autoDodgeButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    if rgbEnabled then
+        autoDodgeButton.BackgroundColor3 = HSVToRGB(rgbHue, 0.8, 0.6)
+    else
+        autoDodgeButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    end
     
     if dodgeConnection then
         dodgeConnection:Disconnect()
@@ -480,7 +703,17 @@ autoMoveButton.MouseButton1Click:Connect(function()
     if autoMovementEnabled then
         stopAutoMovement()
     else
+        stopContinuousMovement()  -- Stop continuous if running
         startAutoMovement()
+    end
+end)
+
+continuousMoveButton.MouseButton1Click:Connect(function()
+    if continuousMoveEnabled then
+        stopContinuousMovement()
+    else
+        stopAutoMovement()  -- Stop auto movement if running
+        startContinuousMovement()
     end
 end)
 
@@ -503,6 +736,11 @@ player.CharacterAdded:Connect(function(newCharacter)
         startAutoMovement()
     end
     
+    if continuousMoveEnabled then
+        stopContinuousMovement()
+        startContinuousMovement()
+    end
+    
     if autoDodgeEnabled then
         stopAutoDodge()
         startAutoDodge()
@@ -513,11 +751,14 @@ end)
 validateDuration()
 validateDodgeDistance()
 
+-- Start RGB by default
+startRGB()
+
 print("✅ Wuys Auto Move Script Loaded Successfully!")
-print("📝 Features: Auto Movement & Auto Dodge")
+print("📝 Features: Auto Movement, Continuous Move & Auto Dodge")
+print("🌈 RGB Colors Enabled (7-second cycle)")
 print("⚙️ Customizable: Move Time & Dodge Distance")
 print("🎮 Draggable GUI is visible on screen")
 print("💡 Drag the title bar to move the GUI")
 print("❌ Click X to close the GUI")
-print("📊 Default Move Time: " .. MOVE_DURATION .. " seconds")
-print("📊 Default Dodge Distance: " .. DODGE_DISTANCE .. " studs")
+print("🔴 Click RGB to toggle color effects")
