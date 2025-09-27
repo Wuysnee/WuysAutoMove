@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -36,18 +37,25 @@ local rgbEnabled = true
 local rgbCycleTime = 7 -- seconds for full cycle
 local rgbHue = 0
 
+-- Minimize State
+local isMinimized = false
+local originalSize = UDim2.new(0, 220, 0, 250)
+local minimizedSize = UDim2.new(0, 40, 0, 40)
+local originalPosition = UDim2.new(0, 10, 0, 10)
+
 -- Create GUI
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "WuysAutoMoveGUI"
 screenGui.Parent = player.PlayerGui
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 220, 0, 250)  -- Increased height for TP Click button
-mainFrame.Position = UDim2.new(0, 10, 0, 10)
+mainFrame.Size = originalSize
+mainFrame.Position = originalPosition
 mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
 mainFrame.Draggable = false
+mainFrame.ClipsDescendants = true
 mainFrame.Parent = screenGui
 
 local corner = Instance.new("UICorner")
@@ -67,7 +75,7 @@ titleCorner.CornerRadius = UDim.new(0, 8)
 titleCorner.Parent = titleBar
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -50, 1, 0)
+title.Size = UDim2.new(1, -80, 1, 0)  -- Adjusted for new buttons
 title.Position = UDim2.new(0, 5, 0, 0)
 title.BackgroundTransparency = 1
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -77,10 +85,25 @@ title.TextSize = 12
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.Parent = titleBar
 
+-- Minimize Button
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Size = UDim2.new(0, 20, 0, 20)
+minimizeButton.Position = UDim2.new(1, -50, 0, 2)
+minimizeButton.BackgroundColor3 = Color3.fromRGB(255, 150, 0)
+minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeButton.Text = "_"
+minimizeButton.Font = Enum.Font.GothamBold
+minimizeButton.TextSize = 12
+minimizeButton.Parent = titleBar
+
+local minimizeCorner = Instance.new("UICorner")
+minimizeCorner.CornerRadius = UDim.new(0, 4)
+minimizeCorner.Parent = minimizeButton
+
 -- RGB Toggle Button
 local rgbButton = Instance.new("TextButton")
 rgbButton.Size = UDim2.new(0, 20, 0, 20)
-rgbButton.Position = UDim2.new(1, -50, 0, 2)
+rgbButton.Position = UDim2.new(1, -75, 0, 2)
 rgbButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 rgbButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 rgbButton.Text = "RGB"
@@ -113,6 +136,80 @@ contentFrame.Size = UDim2.new(1, 0, 1, -25)
 contentFrame.Position = UDim2.new(0, 0, 0, 25)
 contentFrame.BackgroundTransparency = 1
 contentFrame.Parent = mainFrame
+
+-- Minimized Logo (will be loaded from repository)
+local minimizedLogo = Instance.new("ImageLabel")
+minimizedLogo.Size = UDim2.new(1, -10, 1, -10)
+minimizedLogo.Position = UDim2.new(0, 5, 0, 5)
+minimizedLogo.BackgroundTransparency = 1
+minimizedLogo.Visible = false
+minimizedLogo.Parent = mainFrame
+
+-- Function to load logo from repository
+local function loadLogoFromRepository()
+    local logoUrl = "https://raw.githubusercontent.com/Wuysnee/WuysScripts/main/png/logo.png"
+    
+    pcall(function()
+        minimizedLogo.Image = logoUrl
+        print("✅ Logo loaded successfully from repository")
+    end)
+    
+    -- Fallback if repository loading fails
+    if minimizedLogo.Image == "" then
+        minimizedLogo.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
+        print("⚠️ Using fallback logo")
+    end
+end
+
+-- Minimize/Maximize Functions
+local function minimizeGUI()
+    isMinimized = true
+    
+    -- Store original position for restoration
+    originalPosition = mainFrame.Position
+    
+    -- Hide content, show only logo
+    contentFrame.Visible = false
+    titleBar.Visible = false
+    minimizedLogo.Visible = true
+    
+    -- Resize to small square
+    mainFrame.Size = minimizedSize
+    
+    -- Change minimize button to maximize button
+    minimizeButton.Text = "□"
+    minimizeButton.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    
+    print("📱 GUI minimized")
+end
+
+local function maximizeGUI()
+    isMinimized = false
+    
+    -- Hide logo, show content
+    minimizedLogo.Visible = false
+    contentFrame.Visible = true
+    titleBar.Visible = true
+    
+    -- Restore original size and position
+    mainFrame.Size = originalSize
+    mainFrame.Position = originalPosition
+    
+    -- Change maximize button back to minimize button
+    minimizeButton.Text = "_"
+    minimizeButton.BackgroundColor3 = Color3.fromRGB(255, 150, 0)
+    
+    print("📱 GUI maximized")
+end
+
+-- Minimize Button Click
+minimizeButton.MouseButton1Click:Connect(function()
+    if isMinimized then
+        maximizeGUI()
+    else
+        minimizeGUI()
+    end
+end)
 
 -- Move Duration Input
 local durationLabel = Instance.new("TextLabel")
@@ -297,6 +394,13 @@ local function updateRGBColors()
     
     -- Update RGB button
     rgbButton.BackgroundColor3 = rgbColor
+    
+    -- Update minimize button color based on state
+    if isMinimized then
+        minimizeButton.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    else
+        minimizeButton.BackgroundColor3 = Color3.fromRGB(255, 150, 0)
+    end
 end
 
 -- Start RGB cycle
@@ -342,6 +446,13 @@ local function stopRGB()
         tpClickButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
     else
         tpClickButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    end
+    
+    -- Reset minimize button
+    if isMinimized then
+        minimizeButton.BackgroundColor3 = Color3.fromRGB(0, 100, 150)
+    else
+        minimizeButton.BackgroundColor3 = Color3.fromRGB(255, 150, 0)
     end
 end
 
@@ -481,13 +592,13 @@ local function onDoubleClick()
     lastClickTime = currentTime
 end
 
--- GUI Dragging Functions
+-- GUI Dragging Functions (updated for minimized state)
 local function updateInput(input)
     local delta = input.Position - dragStart
     mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 end
 
-titleBar.InputBegan:Connect(function(input)
+local function onTitleBarInput(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = true
         dragStart = input.Position
@@ -499,9 +610,18 @@ titleBar.InputBegan:Connect(function(input)
             end
         end)
     end
-end)
+end
+
+titleBar.InputBegan:Connect(onTitleBarInput)
+minimizedLogo.InputBegan:Connect(onTitleBarInput)  -- Allow dragging from minimized logo too
 
 titleBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+minimizedLogo.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement then
         dragInput = input
     end
@@ -852,13 +972,12 @@ local function stopAutoDodge()
     isDodging = false
 end
 
--- Button click events
+-- Button Click Events
 autoMoveButton.MouseButton1Click:Connect(function()
     if autoMovementEnabled then
         stopAutoMovement()
     else
         stopContinuousMovement()
-        stopTPClick()
         startAutoMovement()
     end
 end)
@@ -868,7 +987,6 @@ continuousMoveButton.MouseButton1Click:Connect(function()
         stopContinuousMovement()
     else
         stopAutoMovement()
-        stopTPClick()
         startContinuousMovement()
     end
 end)
@@ -885,13 +1003,11 @@ tpClickButton.MouseButton1Click:Connect(function()
     if tpClickEnabled then
         stopTPClick()
     else
-        stopAutoMovement()
-        stopContinuousMovement()
         startTPClick()
     end
 end)
 
--- Double click for highest point teleport
+-- Double click detection for TP to highest point
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -899,44 +1015,26 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
+-- Initial validation
+validateDuration()
+validateDodgeDistance()
+
+-- Load logo from repository
+loadLogoFromRepository()
+
+-- Start with RGB enabled by default
+startRGB()
+
+print("🎮 Wuys Auto Movement Script Loaded!")
+print("📱 Features: Auto Movement | Continuous Move | Auto Dodge | TP Click | RGB GUI")
+print("🎯 Controls: Click to TP | Double-click for highest point | Drag title bar to move GUI")
+print("📱 Use minimize button (_) to hide/show GUI")
+
 -- Character respawn handling
 player.CharacterAdded:Connect(function(newCharacter)
     character = newCharacter
     humanoid = character:WaitForChild("Humanoid")
     rootPart = character:WaitForChild("HumanoidRootPart")
     
-    if autoMovementEnabled then
-        stopAutoMovement()
-        startAutoMovement()
-    end
-    
-    if continuousMoveEnabled then
-        stopContinuousMovement()
-        startContinuousMovement()
-    end
-    
-    if autoDodgeEnabled then
-        stopAutoDodge()
-        startAutoDodge()
-    end
-    
-    if tpClickEnabled then
-        stopTPClick()
-        startTPClick()
-    end
+    print("🔄 Character respawned - movement system reset")
 end)
-
--- Initialize validation
-validateDuration()
-validateDodgeDistance()
-
--- Start RGB by default
-startRGB()
-
-print("✅ Wuys Auto Move Script Loaded Successfully!")
-print("📝 Features: Auto Movement, Continuous Move, Auto Dodge & TP Click")
-print("🎯 TP Click: Click anywhere to teleport")
-print("🚀 Double-click to teleport to highest point on map")
-print("🌈 RGB Colors Enabled (7-second cycle)")
-print("⚙️ Customizable: Move Time & Dodge Distance")
-print("🎮 Draggable GUI is visible on screen")
