@@ -1,6 +1,6 @@
 -- Wuys Auto Movement Script for Roblox
 -- Created by Wuysnee
--- Features: Auto Movement & Auto Dodge + Move Continuous + RGB GUI
+-- Features: Auto Movement & Auto Dodge + Move Continuous + RGB GUI + TP Click
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -25,6 +25,7 @@ local autoDodgeEnabled = false
 local continuousMoveEnabled = false
 local isDodging = false
 local currentMovement = nil
+local tpClickEnabled = false
 
 -- GUI Dragging Variables
 local dragging = false
@@ -41,7 +42,7 @@ screenGui.Name = "WuysAutoMoveGUI"
 screenGui.Parent = player.PlayerGui
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 220, 0, 220)  -- Increased height for new button
+mainFrame.Size = UDim2.new(0, 220, 0, 250)  -- Increased height for TP Click button
 mainFrame.Position = UDim2.new(0, 10, 0, 10)
 mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mainFrame.BorderSizePixel = 0
@@ -212,6 +213,21 @@ local autoDodgeCorner = Instance.new("UICorner")
 autoDodgeCorner.CornerRadius = UDim.new(0, 6)
 autoDodgeCorner.Parent = autoDodgeButton
 
+-- TP Click Toggle
+local tpClickButton = Instance.new("TextButton")
+tpClickButton.Size = UDim2.new(0.9, 0, 0, 30)
+tpClickButton.Position = UDim2.new(0.05, 0, 0, 185)
+tpClickButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+tpClickButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+tpClickButton.Text = "TP Click: OFF"
+tpClickButton.Font = Enum.Font.Gotham
+tpClickButton.TextSize = 12
+tpClickButton.Parent = contentFrame
+
+local tpClickCorner = Instance.new("UICorner")
+tpClickCorner.CornerRadius = UDim.new(0, 6)
+tpClickCorner.Parent = tpClickButton
+
 -- RGB Color Functions
 local function HSVToRGB(h, s, v)
     h = h % 1
@@ -273,6 +289,12 @@ local function updateRGBColors()
         autoDodgeButton.BackgroundColor3 = darkerRgb
     end
     
+    if tpClickEnabled then
+        tpClickButton.BackgroundColor3 = rgbColor
+    else
+        tpClickButton.BackgroundColor3 = darkerRgb
+    end
+    
     -- Update RGB button
     rgbButton.BackgroundColor3 = rgbColor
 end
@@ -315,6 +337,12 @@ local function stopRGB()
     else
         autoDodgeButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     end
+    
+    if tpClickEnabled then
+        tpClickButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+    else
+        tpClickButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    end
 end
 
 -- RGB Button Click
@@ -325,6 +353,133 @@ rgbButton.MouseButton1Click:Connect(function()
         startRGB()
     end
 end)
+
+-- TP Click Functions
+local function findHighestPoint()
+    local workspace = game:GetService("Workspace")
+    local highestPoint = nil
+    local highestY = -math.huge
+    
+    -- Search for parts in the workspace
+    for _, part in ipairs(workspace:GetDescendants()) do
+        if part:IsA("Part") or part:IsA("MeshPart") or part:IsA("UnionOperation") then
+            -- Check if part is likely to be part of the map (not too small)
+            if part.Size.Magnitude > 5 then
+                local partTopY = part.Position.Y + part.Size.Y/2
+                if partTopY > highestY then
+                    highestY = partTopY
+                    highestPoint = part.Position + Vector3.new(0, part.Size.Y/2 + 3, 0)
+                end
+            end
+        end
+    end
+    
+    -- If no suitable parts found, try terrain
+    if highestY == -math.huge then
+        local terrain = workspace:FindFirstChildOfClass("Terrain")
+        if terrain then
+            -- Sample terrain at various points
+            for x = -200, 200, 50 do
+                for z = -200, 200, 50 do
+                    local height = terrain:ReadVoxels(Region3.new(
+                        Vector3.new(x, -100, z),
+                        Vector3.new(x+1, 1000, z+1)
+                    ))
+                    if height and height > highestY then
+                        highestY = height
+                        highestPoint = Vector3.new(x, height + 5, z)
+                    end
+                end
+            end
+        end
+    end
+    
+    return highestPoint
+end
+
+local function teleportToHighestPoint()
+    local highestPoint = findHighestPoint()
+    if highestPoint then
+        -- Stop any current movement
+        if currentMovement then
+            currentMovement:Cancel()
+            currentMovement = nil
+        end
+        
+        -- Teleport character
+        character:SetPrimaryPartCFrame(CFrame.new(highestPoint))
+        print("🚀 Teleported to highest point: " .. tostring(highestPoint))
+        return true
+    else
+        print("❌ Could not find highest point on the map")
+        return false
+    end
+end
+
+local function onMouseClick()
+    if not tpClickEnabled then return end
+    
+    -- Get mouse target
+    local mouse = player:GetMouse()
+    if mouse.Target then
+        -- Teleport to position above the clicked point
+        local targetPos = mouse.Hit.Position + Vector3.new(0, 5, 0)
+        
+        -- Stop any current movement
+        if currentMovement then
+            currentMovement:Cancel()
+            currentMovement = nil
+        end
+        
+        -- Teleport character
+        character:SetPrimaryPartCFrame(CFrame.new(targetPos))
+        print("🎯 Teleported to clicked position: " .. tostring(targetPos))
+    end
+end
+
+local function startTPClick()
+    tpClickEnabled = true
+    tpClickButton.Text = "TP Click: ON"
+    if rgbEnabled then
+        tpClickButton.BackgroundColor3 = HSVToRGB(rgbHue, 0.8, 0.8)
+    else
+        tpClickButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+    end
+    
+    -- Add click listener
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            onMouseClick()
+        end
+    end)
+    
+    print("🎯 TP Click enabled - Click anywhere to teleport")
+end
+
+local function stopTPClick()
+    tpClickEnabled = false
+    tpClickButton.Text = "TP Click: OFF"
+    if rgbEnabled then
+        tpClickButton.BackgroundColor3 = HSVToRGB(rgbHue, 0.8, 0.6)
+    else
+        tpClickButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    end
+    
+    print("🎯 TP Click disabled")
+end
+
+-- TP Click to Highest Point (Double Click)
+local lastClickTime = 0
+local function onDoubleClick()
+    if not tpClickEnabled then return end
+    
+    local currentTime = tick()
+    if currentTime - lastClickTime < 0.5 then  -- Double click within 0.5 seconds
+        teleportToHighestPoint()
+    end
+    lastClickTime = currentTime
+end
 
 -- GUI Dragging Functions
 local function updateInput(input)
@@ -427,7 +582,7 @@ dodgeTextBox.FocusLost:Connect(function()
     print("📊 Dodge Distance set to: " .. DODGE_DISTANCE .. " studs")
 end)
 
--- Movement Functions
+-- Movement Functions (giữ nguyên)
 local function getRandomDirection()
     local directions = {
         Vector3.new(1, 0, 0),   -- Right
@@ -541,10 +696,9 @@ local function performContinuousMovement()
     local distance = getRandomDistance()
     local targetPosition = rootPart.Position + (direction * distance)
     
-    -- Continuous movement uses very short duration for smooth movement
     moveToPosition(targetPosition, 0.1)
     
-    if shouldJump() and math.random(1, 10) == 1 then  -- Lower jump chance for continuous
+    if shouldJump() and math.random(1, 10) == 1 then
         wait(0.1)
         if humanoid.FloorMaterial ~= Enum.Material.Air then
             humanoid.JumpPower = JUMP_POWER
@@ -703,7 +857,8 @@ autoMoveButton.MouseButton1Click:Connect(function()
     if autoMovementEnabled then
         stopAutoMovement()
     else
-        stopContinuousMovement()  -- Stop continuous if running
+        stopContinuousMovement()
+        stopTPClick()
         startAutoMovement()
     end
 end)
@@ -712,7 +867,8 @@ continuousMoveButton.MouseButton1Click:Connect(function()
     if continuousMoveEnabled then
         stopContinuousMovement()
     else
-        stopAutoMovement()  -- Stop auto movement if running
+        stopAutoMovement()
+        stopTPClick()
         startContinuousMovement()
     end
 end)
@@ -722,6 +878,24 @@ autoDodgeButton.MouseButton1Click:Connect(function()
         stopAutoDodge()
     else
         startAutoDodge()
+    end
+end)
+
+tpClickButton.MouseButton1Click:Connect(function()
+    if tpClickEnabled then
+        stopTPClick()
+    else
+        stopAutoMovement()
+        stopContinuousMovement()
+        startTPClick()
+    end
+end)
+
+-- Double click for highest point teleport
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        onDoubleClick()
     end
 end)
 
@@ -745,6 +919,11 @@ player.CharacterAdded:Connect(function(newCharacter)
         stopAutoDodge()
         startAutoDodge()
     end
+    
+    if tpClickEnabled then
+        stopTPClick()
+        startTPClick()
+    end
 end)
 
 -- Initialize validation
@@ -755,10 +934,9 @@ validateDodgeDistance()
 startRGB()
 
 print("✅ Wuys Auto Move Script Loaded Successfully!")
-print("📝 Features: Auto Movement, Continuous Move & Auto Dodge")
+print("📝 Features: Auto Movement, Continuous Move, Auto Dodge & TP Click")
+print("🎯 TP Click: Click anywhere to teleport")
+print("🚀 Double-click to teleport to highest point on map")
 print("🌈 RGB Colors Enabled (7-second cycle)")
 print("⚙️ Customizable: Move Time & Dodge Distance")
 print("🎮 Draggable GUI is visible on screen")
-print("💡 Drag the title bar to move the GUI")
-print("❌ Click X to close the GUI")
-print("🔴 Click RGB to toggle color effects")
