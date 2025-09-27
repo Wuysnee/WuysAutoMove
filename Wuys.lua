@@ -147,7 +147,7 @@ minimizedLogo.Parent = mainFrame
 
 -- Function to load logo from repository
 local function loadLogoFromRepository()
-    local logoUrl = "https://raw.githubusercontent.com/Wuysnee/WuysScripts/main/png/logo.png"
+    local logoUrl = "https://raw.githubusercontent.com/Wuysnee/WuysScripts/refs/heads/main/logo.png"
     
     pcall(function()
         minimizedLogo.Image = logoUrl
