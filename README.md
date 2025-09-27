@@ -28,7 +28,7 @@ Script này giúp tự động di chuyển, né đòn, hỗ trợ di chuyển li
 2. Sao chép đoạn code dưới đây:  
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Wuysnee/WuysAutoMove/main/Wuys.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Wuysnee/WuysScripts/main/Wuys.lua"))()
 ```
 
 3. Dán vào cửa sổ script của Executor.  
