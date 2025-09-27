@@ -1,14 +1,14 @@
 # Wuys Auto Movement Script
 
 > **Dự án miễn phí** – Được tạo bởi **Wuys**.  
-> Bạn được phép **fork** và chỉnh sửa mã nguồn.
+> Bạn được phép **fork** và chỉnh sửa mã nguồn thoải mái.
 
 ---
 
 ## 📝 Giới thiệu  
 Wuys Auto Movement Script là một **Lua Script** dành cho **Executor** trong Roblox.  
-Script này hỗ trợ tính năng **Auto Movement**, **Continuous Move**, **Auto Dodge** và GUI RGB.  
-Ngoài ra, script còn được thiết kế để **hỗ trợ dự án Kalitor** – một công cụ hỗ trợ cho game **Blade Ball**.
+Script này giúp tự động di chuyển, né đòn, hỗ trợ di chuyển liên tục và thêm tính năng **TP Click** để teleport nhanh.  
+Được thiết kế để hỗ trợ thêm cho các dự án như **Kalitor** (Blade Ball).
 
 ⚠️ **Lưu ý:** Script **không dùng cho Roblox Studio** – chỉ chạy trên **Executor**.
 
@@ -18,57 +18,46 @@ Ngoài ra, script còn được thiết kế để **hỗ trợ dự án Kalitor
 - **Auto Movement** – Tự động di chuyển nhân vật.  
 - **Continuous Move** – Di chuyển liên tục tránh bị bắt bài.  
 - **Auto Dodge** – Tự động phát hiện và né người chơi gần.  
-- **RGB GUI** – Hiệu ứng màu chuyển động đẹp mắt.  
-- **Tùy chỉnh** – Chỉnh thời gian di chuyển (Move Time) & khoảng cách né (Dodge Distance).  
-- **GUI kéo thả** – Kéo thả tự do trên màn hình.  
-- **Hỗ trợ Kalitor** – Tối ưu để kết hợp với Kalitor cho Blade Ball.
+- **TP Click** – Nhấn để teleport đến vị trí chuột.  
+- **Double Click TP** – Nhấn 2 lần để teleport lên điểm cao nhất bản đồ.  
 
 ---
 
 ## ⚙️ Cách sử dụng  
-### 1️⃣ Cách Execute bằng Executor  
-- Mở **Executor** bất kỳ (ví dụ: KRNL, Delta X, Trigon, Codex trên Android/iOS).  
-- Sao chép đoạn code dưới đây:  
+1. Mở **Executor** phù hợp với thiết bị của bạn.  
+2. Sao chép đoạn code dưới đây:  
 
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Wuysnee/WuysAutoMove/main/Wuys.lua"))()
 ```
 
-- Dán vào cửa sổ script của Executor.  
-- Nhấn **Execute**.  
-
-### 2️⃣ Cách sử dụng GUI  
-- `Auto Movement` – Bật/Tắt tự động di chuyển.  
-- `Continuous Move` – Bật/Tắt di chuyển liên tục.  
-- `Auto Dodge` – Bật/Tắt tự động né đòn.  
-- `RGB` – Bật/Tắt hiệu ứng màu RGB.  
-- Điều chỉnh **Move Time** và **Dodge Distance** bằng ô nhập.  
-- Nhấn `X` để đóng GUI.
+3. Dán vào cửa sổ script của Executor.  
+4. Nhấn **Execute** để chạy.  
+5. Khi chạy, script sẽ tự động kích hoạt các tính năng.  
 
 ---
 
 ## 🖥️ Executor được đề xuất  
-- **PC (Windows):** : Wave , Krnl PC, JJsploit 
-- **Android & iOS:** Codex , Krnl, Delta X, Trigon
+- **PC (Windows):** Krnl, JJSploit, Solara  
+- **Android & iOS:** Delta X, Krnl, Codex, Trigon  
 
 ---
 
-## 🔧 Cấu hình mặc định  
-- **Move Time (s):** 3.0  
-- **Dodge Distance:** 5  
-- **RGB Cycle:** 7 giây  
+## ⚠️ Lưu ý quan trọng  
+1. **Dự án miễn phí** – bạn **được phép fork** hoặc **chỉnh sửa code** thoải mái.  
+2. **Wuys không chịu trách nhiệm** nếu tài khoản Roblox của bạn bị **ban/terminated** khi sử dụng script.  
 
 ---
 
 ## 📂 Cấu trúc file  
 ```
 Wuys.lua
-└── Code chính: Auto Movement, Continuous Move, Auto Dodge, RGB GUI
+└── Code chính: Auto Movement | Continuous Move | Auto Dodge | TP Click
 ```
 
 ---
 
-## 📝 Ghi chú bản quyền  
+## 📝 Bản quyền  
 - Dự án này được tạo bởi **Wuys**.  
 - **Miễn phí sử dụng** và **được phép fork mã nguồn**.  
 - Vui lòng ghi nguồn hoặc để credit tới Wuys khi chia sẻ lại.
